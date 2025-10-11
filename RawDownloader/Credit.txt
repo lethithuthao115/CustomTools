@@ -1,0 +1,15 @@
++ ACQQ:
+Source:
+https://greasyfork.org/en/scripts/540313-ac-qq-downloader
+
+Đã chỉnh sửa: Fix lỗi fflate is not defined bằng cách thay đường dẫn require của flatte
+Sửa thành 
+// @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js
+Đã sửa lại localization từ ru sang en.
+
++ Toki:
+Source:
+https://github.com/crossSiteKikyo/tokiDownloader
+
++Vlogtruyen:
+Code gốc tự viết
