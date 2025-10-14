@@ -9,9 +9,16 @@ https://greasyfork.org/en/scripts/540313-ac-qq-downloader
 + Toki:
 . Source:
 https://github.com/crossSiteKikyo/tokiDownloader
+. Source khác chưa thử:
+https://greasyfork.org/en/scripts/519924-newtoki-helper
+https://greasyfork.org/en/scripts/534773-newtokiripper
 
 + Vlogtruyen:
 . Code gốc tự viết
 
 + Comick:
 . Code gốc tự viết
+
++ Phiên bản dùng cho mọi trang (cẩn thận hiệu suất)
+Image Downloader
+Quick Image Zip Downloader
