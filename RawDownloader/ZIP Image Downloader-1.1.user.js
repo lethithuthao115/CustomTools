@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         ZIP Image Downloader
+// @name         Zip Image Downloader
 // @namespace    https://mika.darkmode/
-// @version      1.1
-// @description  Thu thập tất cả ảnh trên trang và tải về dạng ZIP
+// @version      1.3
+// @description  Thu thập ảnh, bỏ thumbnail, nén thành ZIP theo tên chapter (giữ tên gốc, tải đủ ảnh)
 // @author       Mika
 // @match        *://*/*
 // @grant        none
@@ -12,7 +12,7 @@
 (function () {
   'use strict';
 
-  // === Tạo nút tải ZIP duy nhất ===
+  // === Tạo nút tải ZIP ===
   const btn = document.createElement('button');
   btn.textContent = '📦 Tải ZIP';
   Object.assign(btn.style, {
@@ -30,20 +30,50 @@
   });
   document.body.appendChild(btn);
 
-  // === Lấy danh sách URL ảnh ===
+  // === Lấy tên chapter ===
+  function getChapterName() {
+    let title = document.title || 'chapter';
+    title = title.replace(/[\\/:*?"<>|]+/g, '');
+
+    const urlMatch = window.location.href.match(/(chap(?:ter)?[-_ ]?\d+|ep\d+)/i);
+    if (urlMatch) title = urlMatch[0];
+
+    return title.trim() || 'chapter';
+  }
+
+  // === Lọc thumbnail (theo kích thước hiển thị) ===
   function collectImageUrls() {
     const imgs = [...document.querySelectorAll('img')]
+      .filter(img => {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        return w >= 400 && h >= 400; // bỏ ảnh nhỏ, banner, thumbnail
+      })
       .map(i => i.src)
       .filter(Boolean)
       .filter(src => !src.startsWith('data:'));
+
     return [...new Set(imgs)];
   }
 
-  // === Tải dữ liệu từ URL ===
-  async function fetchAsBlob(url) {
+  // === Giữ tên gốc, lấy phần số.đuôi cuối ===
+  function cleanFileName(url, index) {
+    try {
+      const filePart = url.split('/').pop().split('?')[0];
+      const match = filePart.match(/(\d+\.[a-zA-Z0-9]+)$/);
+      if (match) return match[1];
+      return filePart || `${String(index).padStart(3, '0')}.jpg`;
+    } catch {
+      return `${String(index).padStart(3, '0')}.jpg`;
+    }
+  }
+
+  // === Tải dữ liệu (song song) ===
+  async function fetchAsBuffer(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Lỗi tải ${url}`);
-    return await res.blob();
+    const blob = await res.blob();
+    return new Uint8Array(await blob.arrayBuffer());
   }
 
   // === Nén ZIP và tải về ===
@@ -54,32 +84,43 @@
       return;
     }
 
-    btn.textContent = '⏳ Đang tải...';
-    const files = {};
-    let count = 0;
+    btn.textContent = `⏳ Đang tải (${urls.length})...`;
 
-    for (const url of urls) {
+    const chapterName = getChapterName();
+    const files = {};
+
+    // Giới hạn song song (đỡ nghẽn mạng)
+    const concurrency = 6;
+    let index = 0;
+
+    async function processNext() {
+      const i = index++;
+      if (i >= urls.length) return;
+      const url = urls[i];
       try {
-        const blob = await fetchAsBlob(url);
-        const buffer = new Uint8Array(await blob.arrayBuffer());
-        const name = `${String(++count).padStart(3, '0')}.${url.split('.').pop().split('?')[0]}`;
+        const buffer = await fetchAsBuffer(url);
+        const name = cleanFileName(url, i + 1);
         files[name] = buffer;
+        btn.textContent = `⏳ ${i + 1}/${urls.length}`;
       } catch (err) {
-        console.error(err);
+        console.warn('❌ Lỗi tải:', url, err);
       }
+      return processNext();
     }
+
+    // Chạy song song
+    await Promise.all(new Array(concurrency).fill(0).map(processNext));
 
     const zipped = fflate.zipSync(files, { level: 9 });
     const blob = new Blob([zipped], { type: 'application/zip' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'images.zip';
+    a.download = `${chapterName}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
 
     btn.textContent = '📦 Tải ZIP';
   }
 
-  // === Sự kiện bấm nút ===
   btn.addEventListener('click', downloadAsZip);
 })();
